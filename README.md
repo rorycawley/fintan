@@ -8,7 +8,7 @@ Fintan is a free, open-source Clojure library for building auditable, composable
 
 ## Acknowledgements
 
-This project is inspired by this article [Pragyan Tripathi](https://bytes.vadeai.com/escaping-framework-prison-why-we-ditched-agentic-frameworks-for-simple-apis/) and [Sean Blanchfield](https://github.com/jentic/standard-agent).
+This project is inspired by this article by [Pragyan Tripathi](https://bytes.vadeai.com/escaping-framework-prison-why-we-ditched-agentic-frameworks-for-simple-apis/) and the standard agent talk by [Sean Blanchfield](https://github.com/jentic/standard-agent).
 
 ## License
 
