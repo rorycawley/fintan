@@ -3,6 +3,8 @@ Fintan
 
 Fintan is a free, open-source Clojure library for building auditable, composable LLM agents with data‑first design, structured observability, and pluggable reasoning.
 
+> Name: “Fintan” after Fintan mac Bóchra (“the Wise”), the mythic seer who survives the flood and remembers all histories — a fitting patron for deliberate, memory‑aware agents. (Wikipedia)
+
 [<img src="./assets/fintan_logo.svg" alt="Fintan" width="160">](https://github.com/rorycawley/fintan)
 
 
