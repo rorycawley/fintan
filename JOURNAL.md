@@ -4,4 +4,5 @@ I'm clarifying what an agent is. Reading [simple python decision agent](https://
 
 Non-LLM agents don't understand natural language and cannot adapt or learn. On the other hand, LLM agents can cope with vague natural language requests although the results aren't fully predictable. LLM agents can ask follow up questions to clarify the request and that can lead to better results.
 
-Reading [LLM-Powered Agent](https://www.anupshinde.com/llm-powered-agent-python/) I can see the benefits of having an LLM at the core.
+Reading [LLM-Powered Agent](https://www.anupshinde.com/llm-powered-agent-python/) I can see the benefits of having an LLM at the core, it can take vague asks and turn them into canonical data that a pure logic decision maker can use.
+
