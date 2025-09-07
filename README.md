@@ -15,6 +15,17 @@ The problem we see in practice
 - Brittle integrations. Tool parameters are loosely typed; errors leak vendor details; failures aren’t actionable.
 - Composition pain. Swapping models, tools, or loops requires invasive changes.
 
+What Fintan provides (roadmap)
+- Model adapter (LLM). Uniform protocol over model vendors.
+- Reasoner pluggability. ReAct, ReWOO, CRITIC (and your own) as interchangeable strategies.
+- Just‑in‑time tool discovery + execution. Describe tools once; select and call them safely at runtime.
+- Goal preprocessing. Normalize/validate goals before planning.
+- Short‑term memory. Token‑budgeted, structured, replaceable.
+- Prompt packs. Versioned & validated prompts per component for reproducibility and safe rollout.
+- Observability with structure. Human‑readable transcript and machine‑readable :trace for each step.
+- Clear error taxonomy. Normalized error types with remediation hints.
+- Data‑first, functional core. Pure transforms inside; effects at the edges; transducers for scale.
+
 
 ## Acknowledgements
 
