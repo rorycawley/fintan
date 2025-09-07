@@ -7,28 +7,23 @@ Fintan
 
 [<img src="./assets/fintan_logo.svg" alt="Fintan" width="200">](https://github.com/rorycawley/fintan)
 
-**Status**: pre-alpha / design-first. Interfaces being designed; internals in motion.
+**Status**: pre-alpha. APIs may shift; core ideas are stable.
 
-## Why Fintan?
+---
 
-**The problem we see in practice**
+## TL;DR
 
-- **Repeated scaffolding.** Every team rewires LLM calls, tool lookup/exec, prompts, and short-term history — leading to drift and rework.
-- **Opaque behavior.** Agent “reasoning” is hard to audit; logs are noisy and unstructured.
-- **Brittle integrations.** Tool parameters are loosely typed; errors leak vendor details; failures aren’t actionable.
-- **Composition pain.** Swapping models, tools, or loops requires invasive changes.
+**Pain today**
+- Re-scaffolding the same bits (model calls, tools, prompts, short-term history).
+- Opaque behavior; logs are noisy and unauditable.
+- Brittle tool wiring; loosely typed params; vendor-leaky failures.
+- Hard to swap models/tools/loops without invasive changes.
 
-**What Fintan provides**
-
-- **Model adapter (LLM).** Uniform protocol over model vendors.
-- **Reasoner pluggability.** ReAct, ReWOO, CRITIC (and your own) as interchangeable strategies.
-- **Just-in-time tool discovery + execution.** Describe tools once; select and call them safely at runtime.
-- **Goal preprocessing.** Normalize/validate goals before planning.
-- **Short-term memory.** Token-budgeted, structured, replaceable.
-- **Prompt packs.** Versioned & validated prompts per component for reproducibility and safe rollout.
-- **Observability with structure.** Human-readable transcript **and** machine-readable `:trace` for each step.
-- **Clear error taxonomy.** Normalized error types with remediation hints.
-- **Data-first, functional core.** Pure transforms inside; effects at the edges; transducers for scale.
+**What Fintan is**
+- A small set of **data-first** components for LLM agents.
+- **Sense → Think → Act boundary** with a **pluggable loop**: ReAct, ReWOO, CRITIC (bring your own).
+- **Uniform model adapter**, **typed tools** with schema + safe envelopes, **short-term memory**, **versioned prompt packs**, and **structured observability** (human transcript + machine `:trace`).
+- **Normalized error taxonomy** for actionable failures.
 
 ---
 
@@ -49,7 +44,7 @@ Leiningen (optional):
 :dependencies [[io.github.your-org/fintan "0.1.0-SNAPSHOT"]]
 ```
 
-> Artifact coordinates will be finalized after the first public release. For now, consume via `:git/tag`.
+> Until the first release, consume via `:git/tag`.
 
 
 ---
@@ -100,7 +95,7 @@ Leiningen (optional):
 
 ## Core Ideas & Architecture
 
-Fintan follows a **Sense → Think → Act** loop with composable components:
+Fintan exposes a **Sense → Think → Act** boundary with composable components — the exact loop shape is **pluggable** and depends on the chosen reasoner (e.g., ReAct, ReWOO, CRITIC):
 
 ```
 (goal) → preprocess → reasoner (plan/decide) → tool exec ↔ memory ↔ prompts → observe (trace) → result
@@ -240,9 +235,9 @@ Each reasoner implements `Reasoner`:
 
 Provided strategies:
 
-- `` — interleaves Thought → Action → Observation to ground reasoning in tools.
-- `` — plans first; leans on external observations to verify.
-- `` — generates answer then critiques using tools; revises when necessary.
+- **`react`** — interleaves Thought → Action → Observation to ground reasoning in tools.
+- **`rewoo`** — plan-first (plan-and-execute); leverages external observations; fewer LLM calls.
+- **`critic`** — generate → tool-critique → revise; uses tools to self-check and correct.
 
 Bring your own by implementing the protocol; the rest of the system stays unchanged.
 
@@ -256,7 +251,7 @@ Bring your own by implementing the protocol; the rest of the system stays unchan
 - **Dynamic scope is internal**: bind just-in-time at call sites, never burden callers.
 - **Visible side-effects**: naming/whitespace make effects obvious; `do` blocks where clarity helps.
 - **Narrow accessors**: `get`/`keys`/`nth` over generic seq ops when that’s what you mean.
-- `` only for mutual recursion; prefer `let` + named fns otherwise.
+- **`letfn`** only for mutual recursion; prefer `let` + named fns otherwise.
 - **Style nudges**: prefer `</<=` ordering; accumulators offer 0/1/2-arity + variadic reduction where sensible.
 
 These principles make Fintan predictable to extend and simple to test.
@@ -290,7 +285,13 @@ These principles make Fintan predictable to extend and simple to test.
 
 ## Roadmap
 
--
+- [ ] Streaming responses with backpressure + live trace.
+- [ ] Built-in Red Team tool for prompt-injection hardening.
+- [ ] Eval harness (task suites, cost/latency/fidelity metrics).
+- [ ] More adapters (Anthropic, Azure OpenAI, local GGUF via llama.cpp).
+- [ ] Tool embeddings for smarter JIT discovery.
+- [ ] Long-term memory plug-ins (vector stores).
+- [ ] CLI + minimal web console for traces.
 
 ---
 
