@@ -15,7 +15,7 @@ The problem we see in practice
 - Brittle integrations. Tool parameters are loosely typed; errors leak vendor details; failures aren’t actionable.
 - Composition pain. Swapping models, tools, or loops requires invasive changes.
 
-What Fintan provides (roadmap)
+What Fintan provides (roadmap):
 - Model adapter (LLM). Uniform protocol over model vendors.
 - Reasoner pluggability. ReAct, ReWOO, CRITIC (and your own) as interchangeable strategies.
 - Just‑in‑time tool discovery + execution. Describe tools once; select and call them safely at runtime.
