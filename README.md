@@ -91,6 +91,7 @@ Leiningen (optional):
 ;; => {:answer "Clojure X.Y.Z …", :transcript [...], :trace [...], :errors []}
 ```
 
+
 ---
 
 ## Core Ideas & Architecture
@@ -179,6 +180,14 @@ Prompt packs are EDN bundles:
 - **Versioned** with SemVer and optional `:sha` for immutability.
 - **Validated** against a schema (Malli/spec); enforcement at load time.
 - **Rollout**: switch packs per component or per environment safely.
+
+---
+
+## Extend
+
+- **New tool**: use `tool/defn-tool` with an `:args` schema; return `tool/->ok` or `tool/->error`.
+- **New reasoner**: implement `(decide [this state])` to pick the next step or finalize an answer.
+- **New model**: implement the model adapter protocol (`invoke`/`stream`).
 
 ---
 
