@@ -7,6 +7,14 @@ Fintan is a free, open-source Clojure library for building auditable, composable
 
 [<img src="./assets/fintan_logo.svg" alt="Fintan" width="160">](https://github.com/rorycawley/fintan)
 
+## Why Fintan?
+
+The problem we see in practice
+- Repeated scaffolding. Every team rewires LLM calls, tool lookup/exec, prompts, and short‑term history — leading to drift and rework.
+- Opaque behavior. Agent “reasoning” is hard to audit; logs are noisy and unstructured.
+- Brittle integrations. Tool parameters are loosely typed; errors leak vendor details; failures aren’t actionable.
+- Composition pain. Swapping models, tools, or loops requires invasive changes.
+
 
 ## Acknowledgements
 
