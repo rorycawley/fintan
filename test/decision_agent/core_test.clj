@@ -393,11 +393,10 @@
       (is (nil? (:selected analysis)))))
 
   (testing "Analysis shows candidates sorted by priority"
-    (let [analysis (agent/analyze-decision [:eggs :rice :oil :pasta] 4 30)
-          candidates (:all-candidates analysis)]
-      (when (> (count candidates) 1)
+    (let [analysis (agent/analyze-decision [:eggs :rice :oil :pasta] 4 30)]
+      (when (> (count (:all-candidates analysis)) 1)
         ; Candidates should be sorted by priority score descending
-        (is (apply >= (map :priority-score candidates)))))))
+        (is (apply >= (map :priority-score (:all-candidates analysis))))))))
 
 ;;; =============================================================================
 ;;; Edge Cases and Boundary Tests

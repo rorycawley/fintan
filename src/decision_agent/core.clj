@@ -11,8 +11,10 @@
    - Immutable data structures with clear transformations
    - Separation of concerns between data, rules, and presentation
    - Functions that are either pure transformations or have clear side effects"
+  (:gen-class)
   (:require [clojure.set :as set]
             [clojure.string :as str]))
+
 
 ;;; =============================================================================
 ;;; Domain Model - Data Structures
@@ -31,14 +33,14 @@
    Returns:
      Map representing a complete recipe with all required fields"
   [{:keys [name ingredients cook-time difficulty] :as options}]
-  (let [allowed #{:name :ingredients :cook-time :difficulty}
-        ks      (set (keys options))]
-    {:pre [(set/subset? ks allowed)            ; no unknown keys
-           (string? name)
-           (set? ingredients)
-           (every? keyword? ingredients)
-           (pos-int? cook-time)
-           (#{:easy :medium :hard} difficulty)]})
+  {:pre [(let [allowed #{:name :ingredients :cook-time :difficulty}
+               ks      (set (keys options))]
+           (and (set/subset? ks allowed)            ; no unknown keys
+                (string? name)
+                (set? ingredients)
+                (every? keyword? ingredients)
+                (pos-int? cook-time)
+                (#{:easy :medium :hard} difficulty)))]}
   {:name name
    :ingredients ingredients
    :cook-time cook-time
@@ -445,6 +447,19 @@
      :feasible-count (count candidates)
      :all-candidates scored
      :selected (first scored)}))
+
+(defn -main
+  "Main entry point for standalone JAR execution."
+  [& args]
+  (if (empty? args)
+    (demonstrate-agent!)
+    (let [[ingredients-str hunger-str time-str] args
+          ingredients (str/split ingredients-str #",")
+          hunger (parse-long hunger-str)
+          time (parse-long time-str)]
+      (if (and hunger time)
+        (println (recommend-meal ingredients hunger time))
+        (println "Usage: java -jar decision-agent.jar [ingredients,list hunger-level available-time]")))))
 
 ;; Example usage:
 ;; (demonstrate-agent!)

@@ -2,6 +2,16 @@
 
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}}
 
+ ;; Project metadata for building artifacts
+ :group-id "com.yourcompany/decision-agent"  ; Replace with your organization
+ :artifact-id "decision-agent"
+ :version "0.1.0-SNAPSHOT"
+ :description "A decision-making agent for meal recommendations"
+ :url "https://github.com/youruser/decision-agent"  ; Replace with your repo
+ :license {:name "EPL-2.0"
+           :url "https://www.eclipse.org/legal/epl-2.0/"}
+ :scm {:url "https://github.com/youruser/decision-agent"}  ; Replace with your repo
+
  :aliases
  {:dev
   {:extra-paths ["dev"]
@@ -32,8 +42,7 @@
                "--interactive"]}
 
   :demo
-  {:main-opts ["-m" "decision-agent.core"]
-   :exec-fn decision-agent.core/demonstrate-agent!}
+  {:main-opts ["-e" "(require '[decision-agent.core :as core]) (core/demonstrate-agent!)"]}
 
   :uberjar
   {:extra-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
