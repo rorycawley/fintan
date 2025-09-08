@@ -9,3 +9,7 @@ Reading [LLM-Powered Agent](https://www.anupshinde.com/llm-powered-agent-python/
 Reading [AI Agent asking clarifying questions](https://www.anupshinde.com/clarifying-ai-agent-python/) I can see that the LLM can ask clarifying questions until everything is clear and understood. The LLM can detect what is vague or missing and ask one clarifying question at a time, looping until all of the data it know it needs is confirmed. What's good about this is that it reduces silent errors. 
 
 Reading [LLM-Powered SQL Agent](https://www.anupshinde.com/building-ai-agents-in-python-series/) I see how you can use the techniques mentioned above to create a SQL powered AI Agent. 
+
+# 8th Sep 2025
+
+I created lots of code and tests for the simple python decision agent. Am learning a lot.
