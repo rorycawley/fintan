@@ -1,16 +1,19 @@
 {:paths ["src" "resources"]
 
- :deps {org.clojure/clojure {:mvn/version "1.12.0"}}
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        aero/aero {:mvn/version "1.1.6"}
+        ;; Simplified observability dependencies
+        cheshire/cheshire {:mvn/version "5.12.0"}}            ; JSON for structured data
 
  ;; Project metadata for building artifacts
- :group-id "com.yourcompany/decision-agent"  ; Replace with your organization
+ :group-id "com.rorycawley/decision-agent"
  :artifact-id "decision-agent"
  :version "0.1.0-SNAPSHOT"
  :description "A decision-making agent for meal recommendations"
- :url "https://github.com/youruser/decision-agent"  ; Replace with your repo
+ :url "https://github.com/rorycawley/decision-agent"
  :license {:name "EPL-2.0"
            :url "https://www.eclipse.org/legal/epl-2.0/"}
- :scm {:url "https://github.com/youruser/decision-agent"}  ; Replace with your repo
+ :scm {:url "https://github.com/rorycawley/decision-agent"}
 
  :aliases
  {:dev
@@ -20,9 +23,12 @@
 
   :test
   {:extra-paths ["test"]
-   :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+   :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}
+                io.github.cognitect-labs/test-runner {:git/tag "v0.5.1"
+                                                      :git/sha "dfb30dd"}}
    :main-opts ["-m" "cognitect.test-runner"]
-   :exec-fn cognitect.test-runner.api/test}
+   :exec-fn cognitect.test-runner.api/test
+   :jvm-opts ["-Dprofile=test"]}
 
   :test-deps
   {:extra-paths ["test"]
@@ -42,7 +48,10 @@
                "--interactive"]}
 
   :demo
-  {:main-opts ["-e" "(require '[decision-agent.core :as core]) (core/demonstrate-agent!)"]}
+  {:main-opts ["-e" "(require '[decision-agent.core :as core]) (core/demonstrate-agent-with-metrics!)"]}
+
+  :metrics-server
+  {:main-opts ["-e" "(require '[decision-agent.observability :as obs]) (obs/demo-observability)"]}
 
   :uberjar
   {:extra-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
