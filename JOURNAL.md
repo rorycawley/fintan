@@ -13,3 +13,7 @@ Reading [LLM-Powered SQL Agent](https://www.anupshinde.com/building-ai-agents-in
 # 8th Sep 2025
 
 I created lots of code and tests for the simple python decision agent. Am learning a lot.
+
+# 9th Sep 2025
+
+I added observability and configuration.
