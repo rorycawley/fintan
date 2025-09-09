@@ -219,18 +219,17 @@
           recipes [slow-hard quick-easy]
           state (agent/agent-state #{:eggs} 5 10)]  ; hungry, limited time
 
-      (let [best (agent/best-recipe recipes state)]
-        (is (= "Quick Easy" (:name best)))
-        (is (contains? best :priority-score)))))
+      ;; Direct usage without additional let binding
+      (is (= "Quick Easy" (:name (agent/best-recipe recipes state))))
+      (is (contains? (agent/best-recipe recipes state) :priority-score))))
 
   (testing "Returns nil for empty candidates"
     (is (nil? (agent/best-recipe [] (agent/agent-state #{:eggs} 3 20)))))
 
   (testing "Handles single candidate"
     (let [recipe (agent/recipe {:name "Only Option" :ingredients #{:eggs} :cook-time 5 :difficulty :easy})
-          state (agent/agent-state #{:eggs} 3 20)
-          best (agent/best-recipe [recipe] state)]
-      (is (= "Only Option" (:name best))))))
+          state (agent/agent-state #{:eggs} 3 20)]
+      (is (= "Only Option" (:name (agent/best-recipe [recipe] state)))))))
 
 ;;; =============================================================================
 ;;; Input Processing Tests
