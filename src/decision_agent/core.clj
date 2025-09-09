@@ -25,15 +25,18 @@
        {:observability {:logging {:enabled false}}}))))
 
 (defn configure-observability!
-  "Configures observability based on profile"
+  "Example: set up logging/metrics/etc. based on the selected profile."
   [profile]
-  (let [config (load-config profile)]
-    (obs/configure! (:observability config))))
+  (let [cfg (load-config profile)
+        logging-enabled? (get-in cfg [:observability :logging :enabled] true)]
+    ;; TODO: wire your logging here based on `logging-enabled?` and other cfg keys.
+    ;; e.g., (when logging-enabled? (some-logger/init cfg))
+    cfg))
 
 (defn init-config!
-  "Initialize configuration - call this at startup"
+  "Initialize configuration - call this at startup."
   []
-  (let [profile (keyword (or (System/getenv "PROFILE") "dev"))]
+  (let [profile (detect-profile)]
     (configure-observability! profile)))
 
 ;;; =============================================================================
