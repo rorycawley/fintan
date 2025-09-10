@@ -1,4 +1,6 @@
-{:paths ["src"]
+{
+ :paths ["src"]
+ :override-builtin true
  :tasks
  {test {:doc  "Run unit tests (tools.deps alias :test)"
         :init (do (require '[babashka.process :refer [shell]]))
