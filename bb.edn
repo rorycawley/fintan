@@ -2,6 +2,7 @@
  :override-builtin true
  :paths ["src" "test" "scripts"]
 
+
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}}
 
  :tasks
