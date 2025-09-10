@@ -28,3 +28,10 @@ I created lots of code and tests for the simple python decision agent. Am learni
 # 9th Sep 2025
 
 I added observability and configuration.
+
+# 10th Sep 2025
+
+I took out observability.
+
+I started again but simply. Then I finalised it and sent it to github. I started with part 2.
+
