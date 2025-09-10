@@ -3,18 +3,18 @@
 ;; --- data ----------------------------------------------------------
 
 (def recipes
-  [{:name "Egg Fried Rice"
+  [{:name        "Egg Fried Rice"
     :ingredients #{"rice" "eggs"}
-    :time 15
-    :filling 4}
-   {:name "Cheese Omelette Sandwich"
+    :time        15
+    :filling     4}
+   {:name        "Cheese Omelette Sandwich"
     :ingredients #{"bread" "cheese" "eggs"}
-    :time 10
-    :filling 5}
-   {:name "Bread and Jam"
+    :time        10
+    :filling     5}
+   {:name        "Bread and Jam"
     :ingredients #{"bread" "jam"}
-    :time 5
-    :filling 2}])
+    :time        5
+    :filling     2}])
 
 ;; --- functions -----------------------------------------------------
 
@@ -45,4 +45,4 @@
 (comment
   (def state (perceive ["bread" "cheese" "eggs"] 5 10))
   (act state)
-)
+  )

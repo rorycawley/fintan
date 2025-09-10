@@ -1,14 +1,17 @@
 # Fintan
 
-A lightweight, composable library for building AI agents with pluggable LLMs, reasoning strategies, memory backends, and tool providers.
+A lightweight, composable library for building AI agents with pluggable LLMs, reasoning strategies, memory backends, and
+tool providers.
 
-> Name: “Fintan” after Fintan mac Bóchra (“the Wise”), the mythic seer who survives the flood and remembers all histories. (Wikipedia)
+> Name: “Fintan” after Fintan mac Bóchra (“the Wise”), the mythic seer who survives the flood and remembers all
+> histories. (Wikipedia)
 
 [<img src="./assets/fintan_logo.svg" alt="Fintan" width="200">](https://github.com/rorycawley/fintan)
 
 ## Overview
 
-Fintan provides a modular architecture that bridges LLMs with tools through a flexible reasoning loop. It's deliberately small and readable, allowing you to understand how agents work and build your own without boilerplate.
+Fintan provides a modular architecture that bridges LLMs with tools through a flexible reasoning loop. It's deliberately
+small and readable, allowing you to understand how agents work and build your own without boilerplate.
 
 **Key Features:**
 
@@ -60,28 +63,29 @@ Fintan provides a modular architecture that bridges LLMs with tools through a fl
             [fintan.goal-preprocessor.conversational :as conv]))
 
 ;; Build your own configuration
-(let [llm     (openai/create {:model "gpt-4"})
-      tools   (api-tools/create)
-      memory  (memory/create-atom)  ; -> (atom {})
+(let [llm (openai/create {:model "gpt-4"})
+      tools (api-tools/create)
+      memory (memory/create-atom)  ; -> (atom {})
       reasoner (rewoo/create-reasoner {:llm llm :tools tools :memory memory})
-      preproc  (conv/create {:llm llm})] ; Optional
+      preproc (conv/create {:llm llm})] ; Optional
   (def my-agent
     (agent/create-agent
-      {:llm llm
-       :tools tools
-       :memory memory
-       :reasoner reasoner
+      {:llm               llm
+       :tools             tools
+       :memory            memory
+       :reasoner          reasoner
        :goal-preprocessor preproc})))
 
 (agent/solve my-agent "What's the weather today?")
 ```
 
-> **Tip:** Swap in other providers by requiring their namespaces (e.g., `fintan.llm.anthropic`) and passing the corresponding `:model`.
+> **Tip:** Swap in other providers by requiring their namespaces (e.g., `fintan.llm.anthropic`) and passing the
+> corresponding `:model`.
 
 ## Core Components
 
 | Component             | Protocol            | Purpose                                                 |
-| --------------------- | ------------------- | ------------------------------------------------------- |
+|-----------------------|---------------------|---------------------------------------------------------|
 | **Fintan**            | Main record         | Coordinates all components                              |
 | **LLM**               | `LanguageModel`     | Wraps language models (OpenAI, Anthropic, etc.)         |
 | **Goal Preprocessor** | `GoalPreprocessor`  | Clarifies ambiguous goals, handles conversation context |
@@ -113,22 +117,22 @@ Create custom components by implementing the protocols:
 Create a `config.edn` file with nested structure:
 
 ```clojure
-{:agent {:conversation-history-window 5}
+{:agent    {:conversation-history-window 5}
 
- :llm {:provider :openai
-       :api-key "sk-..."
-       :model "gpt-4"
-       :temperature 0.7}
+ :llm      {:provider    :openai
+            :api-key     "sk-..."
+            :model       "gpt-4"
+            :temperature 0.7}
 
- :reasoner {:type :rewoo
+ :reasoner {:type           :rewoo
             :max-iterations 20
-            :max-retries 2}
+            :max-retries    2}
 
- :tools {:search-limit 10
-         :timeout-ms 5000}
+ :tools    {:search-limit 10
+            :timeout-ms   5000}
 
- :memory {:type :atom
-          :persistence nil}}
+ :memory   {:type        :atom
+            :persistence nil}}
 ```
 
 ## Requirements
@@ -139,21 +143,26 @@ Create a `config.edn` file with nested structure:
 
 ## Design Notes – *Elements of Clojure* Alignment
 
-- **Names (Narrow & Consistent):** Protocols use natural names (`ReasonerEngine`, `LanguageModel`, …); functions like `solve`, `execute-tool` signal effects.
+- **Names (Narrow & Consistent):** Protocols use natural names (`ReasonerEngine`, `LanguageModel`, …); functions like
+  `solve`, `execute-tool` signal effects.
 - **Indirection:** Protocols separate interface from implementation; modules have clear boundaries.
-- **Composition:** Demonstrated with pre-built agents and custom assembly; processes emphasize **pull → transform → push**.
+- **Composition:** Demonstrated with pre-built agents and custom assembly; processes emphasize **pull → transform → push
+  **.
 - **State:** Memory is explicitly an **atom containing a map** for clarity.
+
 ---
 
 ## FAQ
 
 **Is this a framework or a library?**
 
-> A library: data-first components you can compose inside your app. Bring your own HTTP client, logging, and metrics if you prefer.
+> A library: data-first components you can compose inside your app. Bring your own HTTP client, logging, and metrics if
+> you prefer.
 
 **Does Fintan do multi-agent orchestration?**
 
-> Not directly; model it as tools or compose multiple agents. A "Manager" pattern can be expressed as a reasoner + tools.
+> Not directly; model it as tools or compose multiple agents. A "Manager" pattern can be expressed as a reasoner +
+> tools.
 
 **What about safety and policies?**
 
@@ -163,15 +172,19 @@ Create a `config.edn` file with nested structure:
 
 ## Contributing
 
-Issues and PRs welcome. Please attach a minimal repro and (if relevant) a redacted `:trace`. Run tests with `clojure -X:test`.
+Issues and PRs welcome. Please attach a minimal repro and (if relevant) a redacted `:trace`. Run tests with
+`clojure -X:test`.
 
 
 ---
 
 ## Acknowledgements
 
-This project is inspired by this article by [Pragyan Tripathi](https://bytes.vadeai.com/escaping-framework-prison-why-we-ditched-agentic-frameworks-for-simple-apis/) and the standard agent talk by [Sean Blanchfield](https://github.com/jentic/standard-agent).
+This project is inspired by this article
+by [Pragyan Tripathi](https://bytes.vadeai.com/escaping-framework-prison-why-we-ditched-agentic-frameworks-for-simple-apis/)
+and the standard agent talk by [Sean Blanchfield](https://github.com/jentic/standard-agent).
 
 ## License
 
-This project is licensed under the terms of the Apache 2.0 license. Please refer to the [LICENSE](./LICENSE) file for the full terms.
+This project is licensed under the terms of the Apache 2.0 license. Please refer to the [LICENSE](./LICENSE) file for
+the full terms.

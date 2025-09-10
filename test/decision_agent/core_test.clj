@@ -13,14 +13,14 @@
     (is (= 10 (:time s)))))
 
 (deftest match-recipe?-ingredients-and-time
-  (let [state (sut/perceive ["bread" "cheese" "eggs"] 5 10)
+  (let [state (sut/perceive ["bread" "cheese" "eggs" "jam"] 5 10)
         omelette (recipe-by-name "Cheese Omelette Sandwich")
         fried-rice (recipe-by-name "Egg Fried Rice")
         bread-jam (recipe-by-name "Bread and Jam")]
     (testing "passes when all ingredients available and within time"
       (is (true? (sut/match-recipe? state omelette))))
     (testing "fails when time too long"
-      (is (false? (sut/match-recipe? state fried-rice)))) ; needs 15, we have 10
+      (is (false? (sut/match-recipe? state fried-rice))))   ; needs 15, we have 10
     (testing "fails when missing ingredient"
       (is (false? (sut/match-recipe? (sut/perceive ["bread" "eggs"] 5 10)
                                      omelette))))
