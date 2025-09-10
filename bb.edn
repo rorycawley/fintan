@@ -1,10 +1,86 @@
-{
- :paths ["src"]
- :override-builtin true
- :tasks
- {test {:doc  "Run unit tests (tools.deps alias :test)"
-        :init (do (require '[babashka.process :refer [shell]]))
-        :task (shell "clojure -M:test")}
-  run  {:doc  "Run -main in decision-agent.core via tools.deps"
-        :init (do (require '[babashka.process :refer [shell]]))
-        :task (shell "clojure -M:run")}}}
+{:tasks
+ {:requires ([babashka.fs :as fs]
+             [clojure.string :as str])
+
+  ;; Override built-in commands
+  :override-builtin true
+
+  ;; Development tasks
+  repl {:doc "Start a REPL with all dependencies"
+        :task (shell "clj -M:dev:repl")}
+
+  ;; Testing tasks
+  test {:doc "Run all tests"
+        :task (shell "clj -M:test")}
+
+  test:unit {:doc "Run unit tests only"
+             :task (shell "clj -M:test -i unit")}
+
+  test:integration {:doc "Run integration tests only"
+                    :task (shell "clj -M:test -i integration")}
+
+  test:watch {:doc "Run tests in watch mode"
+              :task (shell "clj -M:test --watch")}
+
+  test:coverage {:doc "Run tests with coverage report"
+                 :task (do (shell "clj -M:test")
+                           (println "Coverage report generated in target/coverage"))}
+
+  ;; Linting and formatting
+  lint {:doc "Run clj-kondo linter"
+        :task (shell "clj-kondo --lint src test")}
+
+  format {:doc "Format code with cljfmt"
+          :task (shell "clj -M:format")}
+
+  format:check {:doc "Check code formatting"
+                :task (shell "clj -M:format:check")}
+
+  ;; Running the application
+  run {:doc "Run the meal agent"
+       :task (shell "clj -M:run")}
+
+  run:examples {:doc "Run example scenarios"
+                :task (shell "clj -M -e '(require (quote meal-agent.core)) (meal-agent.core/run-examples)'")}
+
+  run:offline {:doc "Run in offline mode with mock parser"
+               :task (do (System/unsetenv "OPENAI_API_KEY")
+                         (shell "clj -M:run"))}
+
+  ;; Utility tasks
+  clean {:doc "Clean build artifacts"
+         :task (do (fs/delete-tree "target")
+                   (fs/delete-tree ".cpcache")
+                   (println "Cleaned build artifacts"))}
+
+  deps {:doc "Download and cache dependencies"
+        :task (shell "clj -P -M:test:dev")}
+
+  outdated {:doc "Check for outdated dependencies"
+            :task (shell "clj -M:outdated")}
+
+  ;; CI/CD tasks
+  ci {:doc "Run full CI pipeline"
+      :depends [clean deps lint test]
+      :task (println "CI pipeline completed successfully")}
+
+  ;; Development workflow
+  dev {:doc "Start development environment"
+       :task (shell "clj -M:dev:repl")}
+
+  check {:doc "Run all checks (lint, format, test)"
+         :depends [lint format:check test]
+         :task (println "All checks passed!")}
+
+  ;; Documentation
+  docs {:doc "Generate documentation"
+        :task (shell "clj -M:docs")}
+
+  ;; Helper task to set up environment
+  setup {:doc "Set up development environment"
+         :task (do (println "Setting up meal-agent development environment...")
+                   (shell "clj -P -M:test:dev")
+                   (println "✅ Dependencies downloaded")
+                   (when-not (System/getenv "OPENAI_API_KEY")
+                     (println "⚠️  Warning: OPENAI_API_KEY not set. Agent will run in offline mode."))
+                   (println "✅ Setup complete! Run 'bb dev' to start REPL or 'bb test' to run tests."))}}}

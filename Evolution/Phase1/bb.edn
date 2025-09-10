@@ -1,0 +1,10 @@
+{
+ :paths ["src"]
+ :override-builtin true
+ :tasks
+ {test {:doc  "Run unit tests (tools.deps alias :test)"
+        :init (do (require '[babashka.process :refer [shell]]))
+        :task (shell "clojure -M:test")}
+  run  {:doc  "Run -main in decision-agent.core via tools.deps"
+        :init (do (require '[babashka.process :refer [shell]]))
+        :task (shell "clojure -M:run")}}}
