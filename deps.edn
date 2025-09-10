@@ -1,82 +1,47 @@
-{:paths ["src" "resources"]
-
- :deps {org.clojure/clojure {:mvn/version "1.12.0"}
-        aero/aero {:mvn/version "1.1.6"}
-        ;; Simplified observability dependencies
-        cheshire/cheshire {:mvn/version "5.12.0"}}            ; JSON for structured data
-
- ;; Project metadata for building artifacts
- :group-id "com.rorycawley/decision-agent"
- :artifact-id "decision-agent"
- :version "0.1.0-SNAPSHOT"
- :description "A decision-making agent for meal recommendations"
- :url "https://github.com/rorycawley/decision-agent"
- :license {:name "EPL-2.0"
-           :url "https://www.eclipse.org/legal/epl-2.0/"}
- :scm {:url "https://github.com/rorycawley/decision-agent"}
+{:deps {org.clojure/clojure {:mvn/version "1.12.0"}}
 
  :aliases
- {:dev
-  {:extra-paths ["dev"]
-   :extra-deps {org.clojure/tools.namespace {:mvn/version "1.4.4"}
-                org.clojure/tools.trace {:mvn/version "0.7.11"}}}
-
-  :test
-  {:extra-paths ["test"]
-   :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}
-                io.github.cognitect-labs/test-runner {:git/tag "v0.5.1"
-                                                      :git/sha "dfb30dd"}}
-   :main-opts ["-m" "cognitect.test-runner"]
-   :exec-fn cognitect.test-runner.api/test
-   :jvm-opts ["-Dprofile=test"]}
-
-  :test-deps
-  {:extra-paths ["test"]
-   :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1"
-                                                      :git/sha "dfb30dd"}}}
-
-  :runner
-  {:extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1"
-                                                      :git/sha "dfb30dd"}}
-   :main-opts ["-m" "cognitect.test-runner"]}
+ {:demo
+  {:main-opts ["-e" "(require '[decision-agent.core :as core]) (core/demonstrate-agent-with-metrics!)"]}
 
   :repl
   {:extra-deps {nrepl/nrepl {:mvn/version "1.0.0"}
                 cider/cider-nrepl {:mvn/version "0.42.1"}}
-   :main-opts ["-m" "nrepl.cmdline"
-               "--middleware" "[cider.nrepl/cider-middleware]"
-               "--interactive"]}
+   :main-opts ["-m" "nrepl.cmdline" "--middleware" "[cider.nrepl/cider-middleware]"]}
 
-  :demo
-  {:main-opts ["-e" "(require '[decision-agent.core :as core]) (core/demonstrate-agent-with-metrics!)"]}
+  :dev
+  {:extra-paths ["dev"]
+   :extra-deps {org.clojure/tools.namespace {:mvn/version "1.4.4"}}}
 
-  :metrics-server
-  {:main-opts ["-e" "(require '[decision-agent.observability :as obs]) (obs/demo-observability)"]}
+  :test-deps
+  {:extra-paths ["test"]
+   :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}}
+
+  :runner
+  {:extra-paths ["test"]
+   :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+   :main-opts ["-m" "clojure.test"]}
+
+  :format
+  {:extra-deps {cljfmt/cljfmt {:mvn/version "0.9.2"}}
+   :main-opts ["-m" "cljfmt.main" "check"]}
+
+  :format-fix
+  {:extra-deps {cljfmt/cljfmt {:mvn/version "0.9.2"}}
+   :main-opts ["-m" "cljfmt.main" "fix"]}
+
+  :lint
+  {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2023.12.15"}}
+   :main-opts ["-m" "clj-kondo.main" "--lint" "src" "test"]}
+
+  :outdated
+  {:extra-deps {com.github.liquidz/antq {:mvn/version "2.8.1201"}}
+   :main-opts ["-m" "antq.core"]}
 
   :uberjar
   {:extra-deps {com.github.seancorfield/depstar {:mvn/version "2.1.303"}}
    :exec-fn hf.depstar/uberjar
    :exec-args {:aot true
                :jar "target/decision-agent.jar"
-               :main-class decision-agent.core
-               :sync-pom true}}
-
-  :outdated
-  {:extra-deps {com.github.liquidz/antq {:mvn/version "2.7.1154"}}
-   :main-opts ["-m" "antq.core"]}
-
-  :format
-  {:extra-deps {cljfmt/cljfmt {:mvn/version "0.9.2"}}
-   :main-opts ["-m" "cljfmt.main" "check" "src" "test"]}
-
-  :format-fix
-  {:extra-deps {cljfmt/cljfmt {:mvn/version "0.9.2"}}
-   :main-opts ["-m" "cljfmt.main" "fix" "src" "test"]}
-
-  :lint
-  {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2023.12.15"}}
-   :main-opts ["-m" "clj-kondo.main" "--lint" "src:test"]}
-
-  :build
-  {:deps {io.github.clojure/tools.build {:git/tag "v0.9.6" :git/sha "8e78bcc"}}
-   :ns-default build}}}
+               :main-class "decision-agent.core"
+               :sync-pom true}}}}

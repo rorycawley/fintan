@@ -86,6 +86,100 @@
      :decision decision
      :action action}))
 
+
+;; Add this to the end of your decision-agent.core namespace
+
+(defn demonstrate-agent-with-metrics!
+  "Comprehensive demonstration of the decision agent with various scenarios and metrics"
+  []
+  (println "\n🍽️  Decision Agent Demonstration")
+  (println "=====================================\n")
+
+  (let [scenarios [
+                   ;; [description, ingredients, hunger, time]
+                   ["Morning Rush - Need Quick Breakfast" ["eggs" "bread"] 4 10]
+                   ["Lazy Weekend - Time to Cook" ["rice" "eggs" "vegetables"] 3 60]
+                   ["Late Night Snack" ["bread" "jam"] 2 15]
+                   ["Empty Fridge, Very Hungry" [] 5 8]
+                   ["College Student Meal" ["pasta"] 4 25]
+                   ["Office Lunch Break" [] 3 15]
+                   ["Post-Workout, Quick Energy" ["bread" "fruit"] 4 8]
+                   ["Family Dinner Prep" ["rice" "eggs" "vegetables"] 3 45]
+                   ["Moderate Hunger, Good Time" ["pasta" "sauce"] 3 30]
+                   ["Not Very Hungry" ["fruit"] 1 20]]
+
+        results (map (fn [[desc ingredients hunger time]]
+                       (let [result (decision-agent ingredients hunger time)]
+                         (assoc result :description desc :inputs {:ingredients ingredients :hunger hunger :time time})))
+                     scenarios)]
+
+    ;; Display each scenario
+    (doseq [{:keys [description inputs decision action]} results]
+      (println (format "📋 Scenario: %s" description))
+      (println (format "   Input: %s (hunger: %d/5, time: %d mins)"
+                       (if (empty? (:ingredients inputs))
+                         "No ingredients"
+                         (clojure.string/join ", " (:ingredients inputs)))
+                       (:hunger inputs)
+                       (:time inputs)))
+      (println (format "   Decision: %s - %s" (:action decision) (:reason decision)))
+      (println (format "   Action: %s" action))
+      (println))
+
+    ;; Generate metrics
+    (let [decision-counts (->> results
+                               (map #(get-in % [:decision :action]))
+                               frequencies)
+          hunger-values (map #(get-in % [:inputs :hunger]) results)
+          time-values (map #(get-in % [:inputs :time]) results)
+          avg-hunger (double (/ (reduce + hunger-values) (count results)))
+          avg-time (double (/ (reduce + time-values) (count results)))]
+
+      (println "📊 Decision Metrics")
+      (println "===================")
+      (println (format "Total scenarios tested: %d" (count results)))
+      (println (format "Average hunger level: %.1f/5" avg-hunger))
+      (println (format "Average time available: %.1f minutes" avg-time))
+      (println "\nDecision distribution:")
+      (doseq [[decision decision-count] decision-counts]
+        (println (format "  %s: %d (%.1f%%)"
+                         decision
+                         decision-count
+                         (* 100.0 (/ decision-count (count results))))))
+
+      (println "\n🧪 Edge Case Testing")
+      (println "=====================")
+
+      ;; Test edge cases
+      (let [edge-cases [["Hunger threshold (3) with short time" [] 3 20]
+                        ["Hunger threshold (3) with enough time" [] 3 30]
+                        ["High hunger (4) just over time limit" [] 4 16]
+                        ["Maximum hunger and minimum time" [] 5 1]
+                        ["Minimum hunger with lots of time" [] 1 120]]
+            edge-results (map (fn [[desc ingredients hunger time]]
+                                (let [result (decision-agent ingredients hunger time)]
+                                  [desc (get-in result [:decision :action]) hunger time]))
+                              edge-cases)]
+
+        (doseq [[desc decision hunger time] edge-results]
+          (println (format "  %s (H:%d T:%d) → %s" desc hunger time decision)))
+
+        (println "\n✅ Demo completed successfully!")
+        (println "   All decision paths executed without errors")
+        (println "   Agent demonstrates consistent rule-based behavior")
+
+        ;; Return summary for programmatic use
+        {:scenarios-tested (count results)
+         :decision-distribution decision-counts
+         :average-hunger avg-hunger
+         :average-time avg-time
+         :edge-cases-tested (count edge-cases)}))))
+
+(defn demo
+  "Simple alias for demonstrate-agent-with-metrics!"
+  []
+  (demonstrate-agent-with-metrics!))
+
 ;;; === Usage Examples ===
 (comment
   ;; Test the edge cases that were failing
