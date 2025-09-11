@@ -10,7 +10,7 @@
 
 (def config
   {:openai-api-key (System/getenv "OPENAI_API_KEY")
-   :model "gpt-4o" ; Use gpt-5 when available
+   :model "gpt-4o"
    :api-url "https://api.openai.com/v1/chat/completions"})
 
 ;; ============================================================================
