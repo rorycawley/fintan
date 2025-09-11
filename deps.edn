@@ -4,7 +4,7 @@
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
         clj-http/clj-http {:mvn/version "3.12.3"}
         org.clojure/data.json {:mvn/version "2.4.0"}
-        cheshire/cheshire {:mvn/version "5.12.0"}}
+        cheshire/cheshire {:mvn/version "5.13.0"}}
 
  :aliases
  {:test {:extra-paths ["test"]
@@ -15,20 +15,12 @@
                      "-d" "test"]}
 
   :dev {:extra-paths ["dev"]
-        :extra-deps {org.clojure/tools.namespace {:mvn/version "1.4.4"}
-                     com.stuartsierra/component {:mvn/version "1.1.0"}}}
+        :extra-deps {org.clojure/tools.namespace {:mvn/version "1.4.4"}}}
 
   :repl {:extra-deps {nrepl/nrepl {:mvn/version "1.0.0"}
                       cider/cider-nrepl {:mvn/version "0.42.1"}}
          :main-opts ["-m" "nrepl.cmdline"
                      "--middleware" "[cider.nrepl/cider-middleware]"]}
 
-  ;; Run the full interactive LLM version
-  :run {:main-opts ["-m" "meal-agent.llm"]}
-
-  ;; Run the simple core demo
-  :run-core {:main-opts ["-m" "meal-agent.core"]}
-
   :build {:deps {io.github.clojure/tools.build {:git/tag "v0.9.6" :git/sha "8e78bcc"}}
           :ns-default build}}}
-

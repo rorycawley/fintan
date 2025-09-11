@@ -1,3 +1,4 @@
+;; bb.edn
 {:tasks
  {:requires ([babashka.fs :as fs]
              [clojure.string :as str])
@@ -37,18 +38,21 @@
                 :task (shell "clj -M:format:check")}
 
   ;; Running the application
-  run {:doc "Run the meal agent with LLM support"
-       :task (shell "clj -M:run")}
+  run {:doc "Run the meal agent in interactive mode"
+       :task (shell "clj -M -m meal-agent.main")}
 
-  run:core {:doc "Run the simple core demo"
-            :task (shell "clj -M:run-core")}
+  run:batch {:doc "Run the meal agent in batch mode"
+             :task (shell "clj -M -m meal-agent.main batch")}
+
+  run:repl {:doc "Run the meal agent in REPL mode"
+            :task (shell "clj -M -m meal-agent.main repl")}
 
   run:examples {:doc "Run example scenarios"
-                :task (shell "clj -M -e '(require (quote meal-agent.llm)) (meal-agent.llm/run-examples)'")}
+                :task (shell "clj -M -e \"(require '[meal-agent.main :as main]) (main/start!) (main/run-examples!) (main/stop!)\"")}
 
-  run:offline {:doc "Run in offline mode with mock parser"
+  run:offline {:doc "Run in offline mode with stub parser"
                :task (do (System/unsetenv "OPENAI_API_KEY")
-                         (shell "clj -M:run"))}
+                         (shell "clj -M -m meal-agent.main"))}
 
   ;; Utility tasks
   clean {:doc "Clean build artifacts"

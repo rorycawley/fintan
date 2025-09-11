@@ -1,12 +1,29 @@
 (ns meal-agent.core
+  "Pure functional core of the meal agent application.
+
+   This namespace contains:
+   - The domain model (recipes, meal requests)
+   - Pure business logic for meal selection
+   - Port definitions (protocols) for external services
+   - No side effects or I/O operations
+
+   Following the Ports and Adapters pattern, this core defines
+   what it needs from the outside world through protocols (ports)
+   without knowing how those needs are fulfilled (adapters)."
   (:require [clojure.string :as str]
             [clojure.set :as set]))
 
 ;; ============================================================================
-;; Recipe Database (Pure Data)
+;; Domain Model - Recipe Database
 ;; ============================================================================
 
 (def recipes
+  "The in-memory recipe database.
+   Each recipe contains:
+   - :name - Display name of the dish
+   - :ingredients - Set of required ingredients
+   - :hunger-range - [min max] hunger level this satisfies
+   - :time - Minutes needed to prepare"
   [{:name "Grilled Cheese"
     :ingredients #{"bread" "cheese"}
     :hunger-range [2 3]
@@ -38,86 +55,102 @@
     :time 12}])
 
 ;; ============================================================================
-;; Pure Functional Core - Data Transformations
+;; Ports - External Service Interfaces
+;; ============================================================================
+
+(defprotocol MealRequestParser
+  "Port for parsing natural language into structured meal requests.
+
+   This is a PORT in the hexagonal architecture - it defines what
+   the core needs from the outside world without knowing how it's
+   implemented. Adapters will provide concrete implementations."
+
+  (parse-meal-request [this user-input]
+    "Parse natural language input into a structured meal request.
+     Returns a map with :ingredients (set), :hunger (1-5), and :time (minutes).
+     May throw exceptions on parse failure."))
+
+;; ============================================================================
+;; Pure Functions - Data Transformations
 ;; ============================================================================
 
 (defn normalize-ingredient
-  "Normalize a single ingredient to canonical form"
+  "Normalize a single ingredient to canonical form.
+   Converts to lowercase and trims whitespace."
   [ingredient]
   (some-> ingredient
-      str/lower-case
-      str/trim))
+          str/lower-case
+          str/trim))
 
 (defn normalize-ingredients
-  "Transform ingredient list to canonical set"
+  "Transform ingredient list to canonical set.
+   Removes empty strings and normalizes each ingredient."
   [ingredients]
   (->> ingredients
        (map normalize-ingredient)
        (remove str/blank?)
        set))
 
-(defn llm-response->meal-request
-  "Transform LLM response to structured meal request"
-  [llm-response]
-  {:pre  [(map? llm-response)
-          (coll?  (:ingredients llm-response))
-          (number? (:hunger llm-response))
-          (number? (:time llm-response))]
+(defn validate-meal-request
+  "Validate and transform external input into internal meal request format.
+   Ensures all required fields are present and valid."
+  [raw-request]
+  {:pre [(contains? raw-request :ingredients)
+         (contains? raw-request :hunger)
+         (contains? raw-request :time)]
    :post [(set? (:ingredients %))
           (<= 1 (:hunger %) 5)
-          (pos-int? (:time %))]}
-  (let [h (-> (:hunger llm-response) int (max 1) (min 5))
-        t (-> (:time   llm-response) int (max 1))]
-    {:ingredients (normalize-ingredients (:ingredients llm-response))
-     :hunger      h
-     :time        t}))
-
+          (pos? (:time %))]}
+  {:ingredients (normalize-ingredients (:ingredients raw-request))
+   :hunger (:hunger raw-request)
+   :time (:time raw-request)})
 
 ;; ============================================================================
-;; Composable Recipe Matching Predicates
+;; Recipe Matching Logic (Pure Functions)
 ;; ============================================================================
 
 (defn has-ingredients?
-  "Returns predicate that checks if available ingredients contain required"
+  "Returns predicate that checks if available ingredients contain required.
+   This is a higher-order function for composability."
   [required]
   (fn [available]
     (set/subset? required available)))
 
 (defn within-hunger-range?
-  "Returns predicate that checks if hunger is within range"
+  "Returns predicate that checks if hunger is within range."
   [[min-hunger max-hunger]]
   (fn [hunger]
     (<= min-hunger hunger max-hunger)))
 
 (defn hunger-satisfied?
-  "True if hunger is inside the recipe's range.
-   Allow +1 (hungrier) tolerance only for recipes whose max-hunger ≥ 3."
+  "Check if hunger level matches recipe's satisfaction range.
+   Allows +1 tolerance for hungrier users on substantial meals."
   [hunger [min-hunger max-hunger]]
   (or (<= min-hunger hunger max-hunger)
       (and (>= max-hunger 3)
            (= hunger (inc max-hunger)))))
 
-
-
 (defn within-time-limit?
-  "Returns predicate that checks if time is sufficient (with 2-min tolerance)"
+  "Returns predicate that checks if available time is sufficient.
+   Allows 2-minute tolerance for quick recipes."
   [recipe-time]
   (fn [available-time]
     (>= available-time (- recipe-time 2))))
 
 (defn recipe-matches?
-  "Check if recipe matches all criteria in request"
+  "Pure predicate: check if recipe matches all criteria in request."
   [request recipe]
   (and ((has-ingredients? (:ingredients recipe)) (:ingredients request))
-                 (hunger-satisfied? (:hunger request) (:hunger-range recipe))
-                 ((within-time-limit? (:time recipe)) (:time request))))
+       (hunger-satisfied? (:hunger request) (:hunger-range recipe))
+       ((within-time-limit? (:time recipe)) (:time request))))
 
 ;; ============================================================================
-;; Recipe Selection Logic
+;; Recipe Selection (Pure Business Logic)
 ;; ============================================================================
 
 (defn find-matching-recipes
-  "Find all recipes matching the criteria, sorted by cooking time"
+  "Find all recipes matching the criteria, sorted by cooking time.
+   This is pure business logic - no side effects."
   [request recipes-db]
   {:pre [(set? (:ingredients request))
          (number? (:hunger request))
@@ -127,7 +160,8 @@
        (sort-by :time)))
 
 (defn select-best-recipe
-  "Select the best recipe from matches, preferring quicker recipes"
+  "Select the best recipe from matches.
+   Returns a map with :primary and :alternatives, or ::no-matches."
   [matching-recipes]
   (if (empty? matching-recipes)
     ::no-matches
@@ -135,24 +169,26 @@
      :alternatives (rest matching-recipes)}))
 
 (defn suggest-meal
-  "Pure function to suggest meal based on request and recipe database"
+  "Core business logic: suggest meal based on request and recipe database.
+   This is a pure function - same inputs always produce same outputs."
   [request recipes-db]
   (-> request
       (find-matching-recipes recipes-db)
       select-best-recipe))
 
 ;; ============================================================================
-;; Formatting Functions (Pure)
+;; Formatting Functions (Pure Presentation Logic)
 ;; ============================================================================
 
 (defn format-recipe
-  "Format a single recipe for display"
+  "Format a single recipe for display."
   [recipe]
   (str (:name recipe)
        " (" (:time recipe) " min)"))
 
 (defn format-suggestion
-  "Format suggestion for human-readable output"
+  "Format suggestion for human-readable output.
+   Transforms internal representation to presentation format."
   [suggestion]
   (if (= suggestion ::no-matches)
     {:status :no-match
@@ -164,20 +200,43 @@
                           (str/join ", " (map format-recipe (:alternatives suggestion)))))}))
 
 ;; ============================================================================
-;; LLM Client Protocol
+;; Application Service (Orchestration Layer)
 ;; ============================================================================
 
-(defprotocol LLMClient
-  "Protocol for LLM service interaction"
-  (parse-natural-language [this user-input]
-    "Parse natural language into structured data"))
+(defn process-meal-request
+  "Application service that orchestrates the meal suggestion process.
+
+   This function sits at the boundary between the pure core and the
+   outside world. It uses a parser (port) to convert natural language
+   to structured data, then applies pure business logic.
+
+   Parameters:
+   - parser: Implementation of MealRequestParser protocol
+   - user-input: Natural language string from user
+   - recipes-db: Recipe database to search
+
+   Returns formatted suggestion or error message."
+  [parser user-input recipes-db]
+  (try
+    ;; Use the port to parse natural language
+    (let [raw-request (parse-meal-request parser user-input)
+          ;; Validate and transform to internal format
+          request (validate-meal-request raw-request)
+          ;; Apply pure business logic
+          suggestion (suggest-meal request recipes-db)]
+      ;; Format for presentation
+      (format-suggestion suggestion))
+    (catch Exception e
+      {:status :error
+       :message (str "Failed to process request: " (.getMessage e))})))
 
 ;; ============================================================================
-;; Process Boundary - Operational Code
+;; Schema Definitions (for external adapters)
 ;; ============================================================================
 
-(defn create-meal-request-schema
-  "Create the JSON schema for LLM structured output"
+(defn meal-request-schema
+  "JSON schema for structured meal request output.
+   Used by LLM adapters to ensure consistent parsing."
   []
   {:type "object"
    :properties {:ingredients {:type "array"
@@ -190,8 +249,9 @@
    :required ["ingredients" "hunger" "time"]
    :additionalProperties false})
 
-(defn create-system-prompt
-  "Create the system prompt for LLM parsing"
+(defn system-prompt
+  "System prompt for LLM-based parsers.
+   Defines how natural language should be converted to structured data."
   []
   (str "Extract 3 fields and reply ONLY with JSON matching the schema:\n"
        "- ingredients (list[str]): Canonical ingredient names only, pluralized where natural.\n"
@@ -202,83 +262,3 @@
        "- time (minutes, minimum 1)\n\n"
        "If user is vague (e.g., \"in a rush\"), infer a reasonable time (around 10 minutes).\n"
        "If not in a rush, use a default time of 30 minutes."))
-
-;; ============================================================================
-;; Main Process Functions
-;; ============================================================================
-
-(defn meal-suggestion-process
-  "Complete process: pull -> transform -> push
-   Returns the formatted suggestion or error"
-  [llm-client user-input recipes-db]
-  (try
-    (let [llm-response (parse-natural-language llm-client user-input)
-          request      (llm-response->meal-request llm-response)
-          suggestion   (suggest-meal request recipes-db)]
-      (format-suggestion suggestion))
-    (catch Exception e
-      {:status :error
-       :message (str "Failed to process request: " (.getMessage e))})))
-
-
-;; ============================================================================
-;; State Management (at process boundary only)
-;; ============================================================================
-
-(defn create-history-atom
-  "Create atom for request history at process boundary"
-  []
-  (atom []))
-
-(defn record-request!
-  "Record a request and its result in history"
-  [history-atom user-input result]
-  (swap! history-atom conj
-         {:timestamp (java.time.Instant/now)
-          :input user-input
-          :result result})
-  result)
-
-(defn process-meal-request
-  "High-level function to process a meal request with history tracking"
-  [llm-client user-input history-atom recipes-db]
-  (record-request! history-atom
-                   user-input
-                   (meal-suggestion-process llm-client user-input recipes-db)))
-
-
-;; ============================================================================
-;; Configuration Factory
-;; ============================================================================
-
-(defn create-config
-  "Create configuration map with explicit dependencies"
-  [api-key]
-  {:api-key api-key
-   :model "gpt-4o"
-   :api-url "https://api.openai.com/v1/chat/completions"
-   :schema (create-meal-request-schema)
-   :system-prompt (create-system-prompt)})
-
-;; ============================================================================
-;; Main Entry Point (delegates to LLM namespace)
-;; ============================================================================
-
-(defn -main
-  "Main entry point - delegates to LLM implementation"
-  [& _args]
-  (println "Starting Meal Agent...")
-  (println "Note: Full interactive mode requires the meal-agent.llm namespace")
-  (println "Run with: clj -m meal-agent.llm")
-
-  ;; For testing purposes, show that core functions work
-  (println "\nExample using test data:")
-  (let [test-request {:ingredients #{"bread" "cheese"}
-                      :hunger 3
-                      :time 10}
-        suggestion (suggest-meal test-request recipes)
-        formatted (format-suggestion suggestion)]
-    (println "Request:" (pr-str test-request))
-    (println "Result:" (:message formatted))
-    (when-let [alts (:alternatives formatted)]
-      (println "Alternatives:" alts))))
