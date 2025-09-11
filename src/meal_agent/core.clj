@@ -59,16 +59,19 @@
 (defn llm-response->meal-request
   "Transform LLM response to structured meal request"
   [llm-response]
-  {:pre [(map? llm-response)
-         (contains? llm-response :ingredients)
-         (contains? llm-response :hunger)
-         (contains? llm-response :time)]
+  {:pre  [(map? llm-response)
+          (coll?  (:ingredients llm-response))
+          (number? (:hunger llm-response))
+          (number? (:time llm-response))]
    :post [(set? (:ingredients %))
           (<= 1 (:hunger %) 5)
-          (pos? (:time %))]}
-  {:ingredients (normalize-ingredients (:ingredients llm-response))
-   :hunger (:hunger llm-response)
-   :time (:time llm-response)})
+          (pos-int? (:time %))]}
+  (let [h (-> (:hunger llm-response) int (max 1) (min 5))
+        t (-> (:time   llm-response) int (max 1))]
+    {:ingredients (normalize-ingredients (:ingredients llm-response))
+     :hunger      h
+     :time        t}))
+
 
 ;; ============================================================================
 ;; Composable Recipe Matching Predicates
@@ -183,7 +186,7 @@
                          :minimum 1
                          :maximum 5}
                 :time {:type "integer"
-                       :minimum 0}}
+                       :minimum 1}}
    :required ["ingredients" "hunger" "time"]
    :additionalProperties false})
 
@@ -196,7 +199,7 @@
        "  • Remove adjectives (e.g., \"leftover rice\" → \"rice\")\n"
        "  • Use simple grocery-style labels that match common recipes.\n"
        "- hunger (1–5)\n"
-       "- time (minutes)\n\n"
+       "- time (minutes, minimum 1)\n\n"
        "If user is vague (e.g., \"in a rush\"), infer a reasonable time (around 10 minutes).\n"
        "If not in a rush, use a default time of 30 minutes."))
 
