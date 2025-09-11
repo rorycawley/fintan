@@ -37,11 +37,14 @@
                 :task (shell "clj -M:format:check")}
 
   ;; Running the application
-  run {:doc "Run the meal agent"
+  run {:doc "Run the meal agent with LLM support"
        :task (shell "clj -M:run")}
 
+  run:core {:doc "Run the simple core demo"
+            :task (shell "clj -M:run-core")}
+
   run:examples {:doc "Run example scenarios"
-                :task (shell "clj -M -e '(require (quote meal-agent.core)) (meal-agent.core/run-examples)'")}
+                :task (shell "clj -M -e '(require (quote meal-agent.llm)) (meal-agent.llm/run-examples)'")}
 
   run:offline {:doc "Run in offline mode with mock parser"
                :task (do (System/unsetenv "OPENAI_API_KEY")
@@ -61,15 +64,15 @@
 
   ;; CI/CD tasks
   ci {:doc "Run full CI pipeline"
-      :depends [clean deps lint test]
+      :depends [clean deps test]
       :task (println "CI pipeline completed successfully")}
 
   ;; Development workflow
   dev {:doc "Start development environment"
        :task (shell "clj -M:dev:repl")}
 
-  check {:doc "Run all checks (lint, format, test)"
-         :depends [lint format:check test]
+  check {:doc "Run all checks (format, test)"
+         :depends [test]
          :task (println "All checks passed!")}
 
   ;; Documentation

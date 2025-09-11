@@ -1,344 +1,367 @@
-(ns meal-agent.core_test
-  (:require [clojure.test :refer [deftest testing is are use-fixtures]]
-            [clojure.test.check :as tc]
-            [clojure.test.check.generators :as gen]
-            [clojure.test.check.properties :as prop]
-            [clojure.test.check.clojure-test :refer [defspec]]
-            [meal-agent.core :as sut] ; system under test
-            [clojure.string :as str]
-            [cheshire.core :as json]))
+(ns meal-agent.core-test
+  (:require [clojure.test :refer [deftest is testing]]
+            [meal-agent.core :as meal]
+            [clojure.string :as str]))
+
 
 ;; ============================================================================
-;; Test Fixtures & Helpers
+;; Test Fixtures and Helpers
 ;; ============================================================================
 
 (def test-recipes
-  [{:name "Test Sandwich"
+  [{:name "Quick Snack"
+    :ingredients #{"bread"}
+    :hunger-range [1 2]
+    :time 3}
+
+   {:name "Simple Meal"
     :ingredients #{"bread" "cheese"}
     :hunger-range [2 3]
     :time 5}
-   {:name "Test Omelette"
-    :ingredients #{"eggs"}
-    :hunger-range [3 4]
-    :time 8}])
 
-(defn with-test-recipes
-  "Fixture to temporarily replace recipes for testing"
-  [f]
-  (with-redefs [sut/recipes test-recipes]
-    (f)))
+   {:name "Hearty Meal"
+    :ingredients #{"bread" "cheese" "eggs"}
+    :hunger-range [4 5]
+    :time 10}])
 
-(defn with-mock-llm
-  "Fixture to mock LLM calls for testing"
-  [f]
-  (with-redefs [sut/parse-user-input sut/parse-user-input-mock]
-    (f)))
+(defrecord MockLLMClient [responses]
+  meal/LLMClient
+  (parse-natural-language [this user-input]
+    (get @(:responses this) user-input
+         {:ingredients ["bread"] :hunger 3 :time 20})))
 
-;; ============================================================================
-;; Unit Tests - Recipe Matching Logic
-;; ============================================================================
-
-(deftest test-ingredients-match?
-  (testing "Ingredient matching logic"
-    (testing "exact match"
-      (is (sut/ingredients-match? ["bread" "cheese"] #{"bread" "cheese"})))
-
-    (testing "superset of required ingredients"
-      (is (sut/ingredients-match? ["bread" "cheese" "tomato"] #{"bread" "cheese"})))
-
-    (testing "case insensitive matching"
-      (is (sut/ingredients-match? ["Bread" "CHEESE"] #{"bread" "cheese"})))
-
-    (testing "missing ingredients"
-      (is (not (sut/ingredients-match? ["bread"] #{"bread" "cheese"}))))
-
-    (testing "empty ingredients"
-      (is (not (sut/ingredients-match? [] #{"bread"})))
-      (is (sut/ingredients-match? ["bread"] #{})))))
-
-(deftest test-hunger-matches?
-  (testing "Hunger level matching"
-    (are [hunger range expected] (= expected (sut/hunger-matches? hunger range))
-                                 3 [2 4] true    ; within range
-                                 2 [2 4] true    ; at minimum
-                                 4 [2 4] true    ; at maximum
-                                 1 [2 4] false   ; below range
-                                 5 [2 4] false   ; above range
-                                 3 [3 3] true))) ; exact match
-
-(deftest test-time-sufficient?
-  (testing "Time constraint checking with tolerance"
-    (are [available recipe-time expected] (= expected (sut/time-sufficient? available recipe-time))
-                                          10 10 true    ; exact match
-                                          15 10 true    ; more than enough
-                                          8  10 true    ; within 2-minute tolerance
-                                          7  10 false   ; outside tolerance
-                                          5  10 false   ; significantly less
-                                          20 15 true))) ; plenty of time
+(defn create-mock-client
+  "Create a mock LLM client with predefined responses"
+  [response-map]
+  (->MockLLMClient (atom response-map)))
 
 ;; ============================================================================
-;; Unit Tests - Recipe Finding
+;; Tests for Pure Functions - Data Transformations
 ;; ============================================================================
 
-(deftest test-find-suitable-recipes
-  (use-fixtures :once with-test-recipes)
+(deftest test-normalize-ingredient
+  (testing "Normalize ingredient handles various inputs"
+    (is (= "eggs" (meal/normalize-ingredient "Eggs")))
+    (is (= "eggs" (meal/normalize-ingredient " eggs ")))
+    (is (= "eggs" (meal/normalize-ingredient "EGGS")))
+    (is (= "fried rice" (meal/normalize-ingredient " Fried Rice ")))))
 
-  (testing "Finding suitable recipes"
-    (testing "single match"
-      (let [result (sut/find-suitable-recipes
-                     {:ingredients ["bread" "cheese"]
-                      :hunger 3
-                      :time 10})]
-        (is (= 1 (count result)))
-        (is (= "Test Sandwich" (:name (first result))))))
+(deftest test-normalize-ingredients
+  (testing "Normalize ingredients creates canonical set"
+    (is (= #{"eggs" "rice"}
+           (meal/normalize-ingredients ["Eggs" "rice" " EGGS "])))
+    (is (= #{"bread" "cheese"}
+           (meal/normalize-ingredients ["  bread" "CHEESE  " ""])))
+    (is (= #{}
+           (meal/normalize-ingredients ["" "  " nil])))
+    (is (= #{}
+           (meal/normalize-ingredients [nil nil nil])))
+    (is (= #{"eggs"}
+           (meal/normalize-ingredients ["eggs" nil "" "  "])))))
 
-    (testing "no match - missing ingredients"
-      (is (empty? (sut/find-suitable-recipes
-                    {:ingredients ["rice"]
-                     :hunger 3
-                     :time 10}))))
+(deftest test-llm-response->meal-request
+  (testing "Transform LLM response to meal request"
+    (let [response {:ingredients ["Eggs" "RICE"]
+                    :hunger 4
+                    :time 15}
+          request (meal/llm-response->meal-request response)]
+      (is (= #{"eggs" "rice"} (:ingredients request)))
+      (is (= 4 (:hunger request)))
+      (is (= 15 (:time request)))))
 
-    (testing "no match - wrong hunger level"
-      (is (empty? (sut/find-suitable-recipes
-                    {:ingredients ["bread" "cheese"]
-                     :hunger 5
-                     :time 10}))))
+  (testing "Validates preconditions"
+    (is (thrown? AssertionError
+                 (meal/llm-response->meal-request {:hunger 4 :time 15}))))
 
-    (testing "no match - insufficient time"
-      (is (empty? (sut/find-suitable-recipes
-                    {:ingredients ["eggs"]
-                     :hunger 3
-                     :time 5}))))
-
-    (testing "results sorted by time"
-      (let [results (sut/find-suitable-recipes
-                      {:ingredients ["bread" "cheese" "eggs"]
-                       :hunger 3
-                       :time 20})]
-        (is (= ["Test Sandwich" "Test Omelette"]
-               (map :name results)))))))
+  (testing "Validates postconditions"
+    (is (thrown? AssertionError
+                 (meal/llm-response->meal-request
+                   {:ingredients ["eggs"] :hunger 0 :time 15})))
+    (is (thrown? AssertionError
+                 (meal/llm-response->meal-request
+                   {:ingredients ["eggs"] :hunger 6 :time 15})))
+    (is (thrown? AssertionError
+                 (meal/llm-response->meal-request
+                   {:ingredients ["eggs"] :hunger 3 :time -1})))))
 
 ;; ============================================================================
-;; Unit Tests - Meal Suggestion
+;; Tests for Composable Predicates
 ;; ============================================================================
+
+(deftest test-has-ingredients?
+  (testing "Ingredient predicate checks subset relationship"
+    (let [needs-eggs-rice (meal/has-ingredients? #{"eggs" "rice"})]
+      (is (true? (needs-eggs-rice #{"eggs" "rice" "salt"})))
+      (is (true? (needs-eggs-rice #{"eggs" "rice"})))
+      (is (false? (needs-eggs-rice #{"eggs"})))
+      (is (false? (needs-eggs-rice #{"bread" "cheese"}))))))
+
+(deftest test-within-hunger-range?
+  (testing "Hunger range predicate"
+    (let [moderate-hunger (meal/within-hunger-range? [2 4])]
+      (is (true? (moderate-hunger 2)))
+      (is (true? (moderate-hunger 3)))
+      (is (true? (moderate-hunger 4)))
+      (is (false? (moderate-hunger 1)))
+      (is (false? (moderate-hunger 5))))))
+
+(deftest test-within-time-limit?
+  (testing "Time limit predicate with 2-minute tolerance"
+    (let [needs-10-min (meal/within-time-limit? 10)]
+      (is (true? (needs-10-min 10)))
+      (is (true? (needs-10-min 15)))
+      (is (true? (needs-10-min 8)))  ; 2-minute tolerance
+      (is (false? (needs-10-min 7)))
+      (is (false? (needs-10-min 5))))))
+
+(deftest test-recipe-matches?
+  (testing "Recipe matching combines all predicates"
+    (let [request {:ingredients #{"bread" "cheese"}
+                   :hunger 3
+                   :time 10}
+          matching-recipe {:name "Test"
+                           :ingredients #{"bread" "cheese"}
+                           :hunger-range [2 4]
+                           :time 8}
+          wrong-ingredients {:name "Test"
+                             :ingredients #{"eggs"}
+                             :hunger-range [2 4]
+                             :time 8}
+          wrong-hunger {:name "Test"
+                        :ingredients #{"bread" "cheese"}
+                        :hunger-range [4 5]
+                        :time 8}
+          too-slow {:name "Test"
+                    :ingredients #{"bread" "cheese"}
+                    :hunger-range [2 4]
+                    :time 15}]
+      (is (true? (meal/recipe-matches? request matching-recipe)))
+      (is (false? (meal/recipe-matches? request wrong-ingredients)))
+      (is (false? (meal/recipe-matches? request wrong-hunger)))
+      (is (false? (meal/recipe-matches? request too-slow))))))
+
+;; ============================================================================
+;; Tests for Recipe Selection
+;; ============================================================================
+
+(deftest test-find-matching-recipes
+  (testing "Find matching recipes returns sorted list"
+    (let [request {:ingredients #{"bread" "cheese" "eggs"}
+                   :hunger 4
+                   :time 20}
+          matches (meal/find-matching-recipes request test-recipes)]
+      (is (= 2 (count matches)))
+      (is (= "Simple Meal" (:name (first matches))))
+      (is (= "Hearty Meal" (:name (second matches))))))
+
+  (testing "Returns empty list when no matches"
+    (let [request {:ingredients #{"unknown"}
+                   :hunger 3
+                   :time 20}
+          matches (meal/find-matching-recipes request test-recipes)]
+      (is (empty? matches))))
+
+  (testing "Validates preconditions"
+    (is (thrown? AssertionError
+                 (meal/find-matching-recipes
+                   {:ingredients ["not-a-set"] :hunger 3 :time 20}
+                   test-recipes)))))
+
+(deftest test-select-best-recipe
+  (testing "Selects first recipe as primary"
+    (let [recipes [{:name "A" :time 5}
+                   {:name "B" :time 10}
+                   {:name "C" :time 15}]
+          selection (meal/select-best-recipe recipes)]
+      (is (= "A" (:name (:primary selection))))
+      (is (= 2 (count (:alternatives selection))))
+      (is (= "B" (:name (first (:alternatives selection)))))))
+
+  (testing "Returns ::no-matches for empty list"
+    (is (= ::meal/no-matches (meal/select-best-recipe []))))
+
+  (testing "Handles single recipe"
+    (let [selection (meal/select-best-recipe [{:name "Only" :time 5}])]
+      (is (= "Only" (:name (:primary selection))))
+      (is (empty? (:alternatives selection))))))
 
 (deftest test-suggest-meal
-  (use-fixtures :once with-test-recipes)
+  (testing "Complete meal suggestion flow"
+    (let [request {:ingredients #{"bread" "cheese"}
+                   :hunger 3
+                   :time 10}
+          suggestion (meal/suggest-meal request test-recipes)]
+      (is (= "Simple Meal" (:name (:primary suggestion))))))
 
-  (testing "Meal suggestion logic"
-    (testing "successful suggestion"
-      (let [result (sut/suggest-meal
-                     {:ingredients ["bread" "cheese"]
-                      :hunger 3
-                      :time 10})]
-        (is (= :success (:status result)))
-        (is (= "Test Sandwich" (get-in result [:meal :name])))
-        (is (empty? (:alternatives result)))))
-
-    (testing "no suitable meal"
-      (let [result (sut/suggest-meal
-                     {:ingredients ["unknown"]
-                      :hunger 3
-                      :time 10})]
-        (is (= :no-meal (:status result)))
-        (is (str/includes? (:message result) "no suitable meal"))))
-
-    (testing "with alternatives"
-      (let [result (sut/suggest-meal
-                     {:ingredients ["bread" "cheese" "eggs"]
-                      :hunger 3
-                      :time 20})]
-        (is (= :success (:status result)))
-        (is (= 1 (count (:alternatives result))))))))
+  (testing "Returns ::no-matches when appropriate"
+    (let [request {:ingredients #{"caviar"}
+                   :hunger 5
+                   :time 5}
+          suggestion (meal/suggest-meal request test-recipes)]
+      (is (= ::meal/no-matches suggestion)))))
 
 ;; ============================================================================
-;; Unit Tests - Agent State Management
+;; Tests for Formatting Functions
 ;; ============================================================================
 
-(deftest test-agent-creation
-  (testing "Agent initialization"
-    (let [agent (sut/create-agent)]
-      (is (instance? meal_agent.core.MealAgent agent))
-      (is (nil? (get-in agent [:state :last-input])))
-      (is (nil? (get-in agent [:state :last-suggestion])))
-      (is (empty? (get-in agent [:state :history]))))))
-
-(deftest test-agent-perceive
-  (use-fixtures :once with-mock-llm)
-
-  (testing "Agent perception updates state"
-    (let [agent (sut/create-agent)
-          input "I have bread and cheese"
-          updated-agent (sut/perceive agent input)]
-      (is (= input (get-in updated-agent [:state :last-input :raw])))
-      (is (map? (get-in updated-agent [:state :last-input :parsed])))
-      (is (contains? (get-in updated-agent [:state :last-input :parsed]) :ingredients)))))
-
-(deftest test-agent-act
-  (use-fixtures :once with-test-recipes with-mock-llm)
-
-  (testing "Agent action generates suggestion and updates history"
-    (let [agent (-> (sut/create-agent)
-                    (sut/perceive "I have bread and cheese")
-                    (sut/act))]
-      (is (some? (get-in agent [:state :last-suggestion])))
-      (is (= 1 (count (get-in agent [:state :history]))))
-      (is (instance? java.util.Date
-                     (get-in agent [:state :history 0 :timestamp]))))))
-
-;; ============================================================================
-;; Unit Tests - Output Formatting
-;; ============================================================================
+(deftest test-format-recipe
+  (testing "Recipe formatting"
+    (is (= "Grilled Cheese (5 min)"
+           (meal/format-recipe {:name "Grilled Cheese" :time 5})))))
 
 (deftest test-format-suggestion
-  (testing "Suggestion formatting"
-    (testing "successful suggestion without alternatives"
-      (is (str/includes?
-            (sut/format-suggestion {:status :success
-                                    :meal {:name "Grilled Cheese"}
-                                    :alternatives []})
-            "Grilled Cheese")))
+  (testing "Format successful suggestion"
+    (let [suggestion {:primary {:name "Main" :time 10}
+                      :alternatives [{:name "Alt1" :time 15}
+                                     {:name "Alt2" :time 20}]}
+          formatted (meal/format-suggestion suggestion)]
+      (is (= :success (:status formatted)))
+      (is (str/includes? (:message formatted) "Main"))
+      (is (str/includes? (:alternatives formatted) "Alt1"))
+      (is (str/includes? (:alternatives formatted) "Alt2"))))
 
-    (testing "successful suggestion with alternatives"
-      (let [output (sut/format-suggestion
-                     {:status :success
-                      :meal {:name "Main Dish"}
-                      :alternatives [{:name "Alt 1"} {:name "Alt 2"}]})]
-        (is (str/includes? output "Main Dish"))
-        (is (str/includes? output "Alt 1"))
-        (is (str/includes? output "Alt 2"))))
+  (testing "Format no-matches"
+    (let [formatted (meal/format-suggestion ::meal/no-matches)]
+      (is (= :no-match (:status formatted)))
+      (is (str/includes? (:message formatted) "Sorry"))))
 
-    (testing "no meal found"
-      (is (str/includes?
-            (sut/format-suggestion {:status :no-meal})
-            "no suitable meal")))
-
-    (testing "unknown status"
-      (is (= "Unknown status"
-             (sut/format-suggestion {:status :unknown}))))))
+  (testing "Format with no alternatives"
+    (let [suggestion {:primary {:name "Only" :time 5}
+                      :alternatives []}
+          formatted (meal/format-suggestion suggestion)]
+      (is (= :success (:status formatted)))
+      (is (nil? (:alternatives formatted))))))
 
 ;; ============================================================================
-;; Integration Tests - Mock Parser
+;; Tests for Process Functions
 ;; ============================================================================
 
-(deftest test-parse-user-input-mock
-  (testing "Mock parser handles various inputs"
-    (testing "eggs and rice with urgency"
-      (let [result (sut/parse-user-input-mock
-                     "I have eggs and rice. I'm very hungry but in a rush.")]
-        (is (= ["eggs" "rice"] (:ingredients result)))
-        (is (= 5 (:hunger result)))
-        (is (= 10 (:time result)))))
+(deftest test-meal-suggestion-process
+  (testing "Successful process flow"
+    (let [client (create-mock-client
+                   {"test input" {:ingredients ["bread" "cheese"]
+                                  :hunger 3
+                                  :time 10}})
+          result (meal/meal-suggestion-process client "test input" test-recipes)]
+      (is (= :success (:status result)))
+      (is (str/includes? (:message result) "Simple Meal"))))
 
-    (testing "bread and cheese, casual"
-      (let [result (sut/parse-user-input-mock
-                     "kinda hungry, got some bread and cheese")]
-        (is (= ["bread" "cheese"] (:ingredients result)))
-        (is (= 3 (:hunger result)))
-        (is (= 30 (:time result)))))
+  (testing "Handles parsing errors gracefully"
+    (let [client (reify meal/LLMClient
+                   (parse-natural-language [_ _]
+                     (throw (Exception. "API error"))))
+          result (meal/meal-suggestion-process client "test" test-recipes)]
+      (is (= :error (:status result)))
+      (is (str/includes? (:message result) "API error"))))
 
-    (testing "unknown input"
-      (let [result (sut/parse-user-input-mock "random text")]
-        (is (empty? (:ingredients result)))
-        (is (= 3 (:hunger result)))
-        (is (= 20 (:time result)))))))
+  (testing "Handles no matches"
+    (let [client (create-mock-client
+                   {"test" {:ingredients ["unknown"]
+                            :hunger 3
+                            :time 5}})
+          result (meal/meal-suggestion-process client "test" test-recipes)]
+      (is (= :no-match (:status result))))))
 
 ;; ============================================================================
-;; Integration Tests - Full Pipeline
+;; Tests for State Management
 ;; ============================================================================
 
-(deftest test-process-request-offline
-  (use-fixtures :once with-test-recipes)
+(deftest test-history-management
+  (testing "Records requests in history"
+    (let [history (meal/create-history-atom)
+          client (create-mock-client
+                   {"input1" {:ingredients ["bread"] :hunger 2 :time 10}
+                    "input2" {:ingredients ["eggs"] :hunger 4 :time 15}})
+          result1 (meal/process-meal-request client "input1" history test-recipes)
+          result2 (meal/process-meal-request client "input2" history test-recipes)]
 
-  (testing "Full offline processing pipeline"
-    (testing "successful processing"
-      (let [result (sut/process-request-offline
-                     "kinda hungry, got some bread and cheese lying around")]
-        (is (= :success (:status result)))
-        (is (some? (:meal result)))))
+      (is (= 2 (count @history)))
+      (is (= "input1" (:input (first @history))))
+      (is (= "input2" (:input (second @history))))
+      (is (every? :timestamp @history))
+      (is (= result1 (:result (first @history))))
+      (is (= result2 (:result (second @history)))))))
 
-    (testing "no suitable meal"
-      (let [result (sut/process-request-offline "just have water")]
-        (is (= :no-meal (:status result)))))))
+;; ============================================================================
+;; Integration Tests
+;; ============================================================================
+
+(deftest test-end-to-end-flow
+  (testing "Complete flow with valid input"
+    (let [client (create-mock-client
+                   {"I have bread, cheese and eggs. Very hungry, 15 minutes"
+                    {:ingredients ["bread" "cheese" "eggs"]
+                     :hunger 5
+                     :time 15}})
+          history (meal/create-history-atom)
+          result (meal/process-meal-request
+                   client
+                   "I have bread, cheese and eggs. Very hungry, 15 minutes"
+                   history
+                   test-recipes)]
+
+      (is (= :success (:status result)))
+      (is (str/includes? (:message result) "Hearty Meal"))
+      (is (= 1 (count @history)))))
+
+  (testing "Complete flow with partial matches"
+    (let [client (create-mock-client
+                   {"Just bread, kinda hungry"
+                    {:ingredients ["bread"]
+                     :hunger 2
+                     :time 30}})
+          result (meal/meal-suggestion-process
+                   client
+                   "Just bread, kinda hungry"
+                   test-recipes)]
+
+      (is (= :success (:status result)))
+      (is (str/includes? (:message result) "Quick Snack"))))
+
+  (testing "Complete flow with no matches"
+    (let [client (create-mock-client
+                   {"I have caviar and truffles"
+                    {:ingredients ["caviar" "truffles"]
+                     :hunger 3
+                     :time 30}})
+          result (meal/meal-suggestion-process
+                   client
+                   "I have caviar and truffles"
+                   test-recipes)]
+
+      (is (= :no-match (:status result)))
+      (is (str/includes? (:message result) "Sorry")))))
 
 ;; ============================================================================
 ;; Property-Based Tests
 ;; ============================================================================
 
-(defspec ingredients-match-is-reflexive 100
-  (prop/for-all [ingredients (gen/vector (gen/elements ["bread" "cheese" "eggs" "rice"]))]
-    (sut/ingredients-match? ingredients (set ingredients))))
+(deftest test-properties
+  (testing "Normalized ingredients are always lowercase sets"
+    (doseq [input [["EGGS" "Rice" "bread"]
+                   ["  cheese  " "CHEESE" "Cheese"]
+                   ["a" "B" "c" "D" "e"]]]
+      (let [result (meal/normalize-ingredients input)]
+        (is (set? result))
+        (is (every? #(= % (str/lower-case %)) result)))))
 
-(defspec hunger-within-range-always-matches 100
-  (prop/for-all [min-hunger (gen/choose 1 4)
-                 max-hunger (gen/choose 1 5)]
-    (let [range [(min min-hunger max-hunger) (max min-hunger max-hunger)]
-          mid-point (quot (+ (first range) (second range)) 2)]
-      (sut/hunger-matches? mid-point range))))
+  (testing "Recipe matching is deterministic"
+    (let [request {:ingredients #{"bread" "cheese"}
+                   :hunger 3
+                   :time 10}
+          recipe {:name "Test"
+                  :ingredients #{"bread"}
+                  :hunger-range [2 4]
+                  :time 8}]
+      (dotimes [_ 10]
+        (is (= (meal/recipe-matches? request recipe)
+               (meal/recipe-matches? request recipe))))))
 
-(defspec sufficient-time-always-works 100
-  (prop/for-all [recipe-time (gen/choose 5 30)
-                 extra-time (gen/choose 0 20)]
-    (sut/time-sufficient? (+ recipe-time extra-time) recipe-time)))
-
-;; ============================================================================
-;; Edge Cases & Error Handling
-;; ============================================================================
-
-(deftest test-edge-cases
-  (testing "Edge cases and error conditions"
-    (testing "nil inputs"
-      (is (thrown? Exception (sut/ingredients-match? nil #{"bread"})))
-      (is (thrown? Exception (sut/hunger-matches? nil [1 3]))))
-
-    (testing "empty recipe database"
-      (with-redefs [sut/recipes []]
-        (let [result (sut/suggest-meal {:ingredients ["anything"]
-                                        :hunger 3
-                                        :time 20})]
-          (is (= :no-meal (:status result))))))
-
-    (testing "extreme values"
-      (is (not (sut/hunger-matches? 0 [1 5])))
-      (is (not (sut/hunger-matches? 6 [1 5])))
-      (is (not (sut/time-sufficient? -1 10))))))
-
-;; ============================================================================
-;; Performance Tests
-;; ============================================================================
-
-(deftest ^:performance test-recipe-search-performance
-  (testing "Recipe search performance with large dataset"
-    (let [large-recipe-db (vec (repeatedly 1000
-                                           #(hash-map
-                                              :name (str "Recipe " (rand-int 1000))
-                                              :ingredients (set (take (inc (rand-int 5))
-                                                                      (shuffle ["a" "b" "c" "d" "e"])))
-                                              :hunger-range [(inc (rand-int 3)) (+ 3 (rand-int 3))]
-                                              :time (+ 5 (rand-int 25)))))]
-      (with-redefs [sut/recipes large-recipe-db]
-        (let [start (System/nanoTime)
-              _ (sut/find-suitable-recipes {:ingredients ["a" "b" "c"]
-                                            :hunger 3
-                                            :time 15})
-              elapsed (/ (- (System/nanoTime) start) 1000000.0)]
-          (is (< elapsed 100) ; Should complete within 100ms
-              (str "Search took " elapsed "ms")))))))
-
-;; ============================================================================
-;; Test Runner Configuration
-;; ============================================================================
-
-(defn run-tests
-  "Run all tests with summary"
-  []
-  (let [results (clojure.test/run-tests)]
-    (println "\n=== Test Summary ===")
-    (println "Tests run:" (:test results))
-    (println "Assertions:" (:pass results))
-    (println "Failures:" (:fail results))
-    (println "Errors:" (:error results))
-    (if (and (zero? (:fail results)) (zero? (:error results)))
-      (println "✅ All tests passed!")
-      (println "❌ Some tests failed"))
-    results))
+  (testing "Suggestion always returns valid structure"
+    (doseq [request [{:ingredients #{"bread"} :hunger 1 :time 5}
+                     {:ingredients #{"unknown"} :hunger 5 :time 100}
+                     {:ingredients #{} :hunger 3 :time 30}]]
+      (let [result (meal/suggest-meal request test-recipes)]
+        (is (or (= ::meal/no-matches result)
+                (and (contains? result :primary)
+                     (contains? result :alternatives))))))))

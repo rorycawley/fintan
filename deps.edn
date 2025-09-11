@@ -1,4 +1,5 @@
-{:paths ["src" "test"]
+;; deps.edn
+{:paths ["src"]
 
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
         clj-http/clj-http {:mvn/version "3.12.3"}
@@ -22,7 +23,12 @@
          :main-opts ["-m" "nrepl.cmdline"
                      "--middleware" "[cider.nrepl/cider-middleware]"]}
 
-  :run {:main-opts ["-m" "meal-agent.core"]}
+  ;; Run the full interactive LLM version
+  :run {:main-opts ["-m" "meal-agent.llm"]}
+
+  ;; Run the simple core demo
+  :run-core {:main-opts ["-m" "meal-agent.core"]}
 
   :build {:deps {io.github.clojure/tools.build {:git/tag "v0.9.6" :git/sha "8e78bcc"}}
           :ns-default build}}}
+
