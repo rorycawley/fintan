@@ -1,0 +1,7 @@
+{:paths ["src"]
+ :override-builtin true
+ :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
+             "clojars" {:url "https://repo.clojars.org/"}}
+ :tasks
+ {run {:doc "Run the minimal OpenAI chat demo"
+       :task (shell "clj -M -m minichat.core")}}}
