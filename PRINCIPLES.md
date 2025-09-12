@@ -5,6 +5,25 @@ This document is a tech‑agnostic, MECE set of architecture and design principl
 - **kellabyte — “Architecture by Fashion, Not Fundamentals: The Rise of Pattern Driven Development” (Sep 11, 2025)**  
   <https://substack.com/inbox/post/173391778>
 
+| Principle                              | What this means in practice                                                                                                                                                                                      |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Evidence over fashion**              | Define workload model (QPS, p95 targets, data sizes); run a spike with realistic data and capture numbers; record the choice in an ADR with success criteria and a review date.                                  |
+| **Data shapes drive design**           | List top access patterns (reads/writes, frequency, shapes, cardinality); draw module boundaries around data ownership and change cadence; plan schema/versioning and migrations up front.                        |
+| **Put compute near the data**          | Push filters/joins/aggregations to the engine holding the data; return only needed fields; materialize precomputed views/results for expensive, stable computations.                                             |
+| **Respect algorithmic complexity**     | Annotate hot paths with expected time/space complexity; choose structures accordingly (hash for point lookups, ordered for ranges, heap for top-N); replace per-item loops with batching/vectorized ops.         |
+| **Index-aware thinking**               | For each hot query, specify predicate, order/grouping and the index (key order, selectivity) that supports it; ensure index/derivative updates are in the same write boundary; periodically drop unused indexes. |
+| **No “post-query table scans”**        | Avoid broad fetches then filtering in memory; express business rules as predicates/joins/group-bys; if client-side is unavoidable, build explicit in-memory indexes/bitsets and stream in chunks.                |
+| **Correctness before cleverness**      | State invariants and transaction boundaries; keep derived data/indexes consistent and atomic with source updates; design idempotent commands and test concurrency/crash recovery paths.                          |
+| **Minimize distribution**              | Count network hops in the hot path and justify each; collocate tightly coupled components; avoid chatty protocols—prefer coarse-grained calls with clear ownership.                                              |
+| **Design for flow control**            | Set concurrency limits and bounded queues; implement backpressure, batching under load, and timeouts/retries; monitor queue length, wait time, and shed load gracefully.                                         |
+| **Optimize the hot path early enough** | Name the top 1–3 revenue/retention flows and set SLOs (p95/p99); build a realistic dataset and perf tests; gate releases on meeting SLOs at target scale.                                                        |
+| **Make costs visible**                 | Dashboard cost/request and cost/user (CPU ms, memory, I/O, egress, \$); tag resources by service/feature; include cost impact in ADRs with budgets/alerts.                                                       |
+| **Stable APIs, evolving internals**    | Keep contracts backward compatible (version only when needed); use adapters/shims so internals (indexes, batching, layouts) can change without client churn; enforce with contract tests.                        |
+| **Pragmatism over ideology**           | Prefer the smallest change that meets SLOs and cost goals; if you can’t move logic to storage, bring structures (caches/indexes) to the app; plan incremental rollouts that fit team skills.                     |
+| **Operational simplicity**             | Fewer services/stores with clear ownership; standardize observability/runbooks/retry policies; design for graceful degradation, kill-switches, and simple failure modes.                                         |
+| **Measure, don’t assume**              | Capture before/after benchmarks on the same dataset; trace across boundaries (p50/p95/p99, CPU time, allocations, I/O waits); treat “should be fine” as a hypothesis with pass/fail criteria.                    |
+| **Reversibility & guardrails**         | Use feature flags, canaries, and staged rollouts; dual-write/read during migrations with automated comparisons; keep fast rollback and scoped blast-radius limits (quotas, circuit breakers).                    |
+
 ---
 
 ## Principles Table
