@@ -1,0 +1,219 @@
+{:tasks
+ {:requires ([babashka.fs :as fs]
+             [clojure.string :as str])
+
+  ;; Override built-in commands
+  :override-builtin true
+
+  ;; === Development Tasks ===
+
+  repl {:doc "Start a REPL with all dependencies"
+        :task (shell "clj -M:dev:repl")}
+
+  dev {:doc "Start development environment with examples"
+       :task (shell "clj -M:dev:examples:repl")}
+
+  ;; === Testing Tasks ===
+
+  test {:doc "Run all tests"
+        :task (shell "clj -M:test")}
+
+  test:unit {:doc "Run unit tests only"
+             :task (shell "clj -M:test -i unit")}
+
+  test:integration {:doc "Run integration tests only"
+                    :task (shell "clj -M:test -i integration")}
+
+  test:watch {:doc "Run tests in watch mode"
+              :task (shell "clj -M:test --watch")}
+
+  test:examples {:doc "Test all examples"
+                 :task (shell "clj -M:examples:test -d examples")}
+
+  test:coverage {:doc "Run tests with coverage report"
+                 :task (do (shell "clj -M:test")
+                           (println "Coverage report generated in target/coverage"))}
+
+  ;; === Code Quality Tasks ===
+
+  lint {:doc "Run clj-kondo linter"
+        :task (shell "clj -M:lint")}
+
+  format {:doc "Format code with cljfmt"
+          :task (shell "clj -M:format")}
+
+  format:check {:doc "Check code formatting"
+                :task (shell "clj -M:format-check")}
+
+  check {:doc "Run all checks (lint, format, test)"
+         :depends [lint format:check test]
+         :task (println "✅ All checks passed!")}
+
+  ;; === Example Tasks ===
+
+  example {:doc "Run default example (mock provider)"
+           :task (shell "clj -M:run-example")}
+
+  example:mock {:doc "Run example with mock provider"
+                :task (shell "clj -M:run-example test")}
+
+  example:functional {:doc "Run functional style example"
+                      :task (shell "clj -M:run-example functional")}
+
+  example:registry {:doc "Run registry pattern example"
+                    :task (shell "clj -M:run-example registry")}
+
+  example:hot-swap {:doc "Run hot-swap demonstration"
+                    :task (shell "clj -M:run-example hot-swap")}
+
+  example:openai {:doc "Run example with OpenAI provider"
+                  :task (if (System/getenv "OPENAI_API_KEY")
+                          (shell "clj -M:openai-example")
+                          (println "❌ OPENAI_API_KEY not set"))}
+
+  example:claude {:doc "Run example with Claude provider"
+                  :task (if (System/getenv "CLAUDE_API_KEY")
+                          (shell "clj -M:claude-example")
+                          (println "❌ CLAUDE_API_KEY not set"))}
+
+  example:gemini {:doc "Run example with Gemini provider"
+                  :task (if (System/getenv "GEMINI_API_KEY")
+                          (shell "clj -M:gemini-example")
+                          (println "❌ GEMINI_API_KEY not set"))}
+
+  ;; === Library Management Tasks ===
+
+  clean {:doc "Clean build artifacts"
+         :task (do (fs/delete-tree "target")
+                   (fs/delete-tree ".cpcache")
+                   (println "✅ Cleaned build artifacts"))}
+
+  deps {:doc "Download and cache dependencies"
+        :task (shell "clj -P -M:test:dev:examples")}
+
+  outdated {:doc "Check for outdated dependencies"
+            :task (shell "clj -M:outdated")}
+
+  ;; === Documentation Tasks ===
+
+  docs {:doc "Generate API documentation"
+        :task (shell "clj -M:docs")}
+
+  docs:serve {:doc "Serve documentation locally"
+              :task (do (shell "clj -M:docs")
+                        (shell "python3 -m http.server 8080 --directory docs"))}
+
+  ;; === Build & Deploy Tasks ===
+
+  build {:doc "Build JAR for deployment"
+         :task (shell "clj -T:build jar")}
+
+  install {:doc "Install to local Maven repository"
+           :task (shell "clj -T:build install")}
+
+  deploy {:doc "Deploy to Clojars"
+          :task (if (System/getenv "CLOJARS_USERNAME")
+                  (shell "clj -M:deploy")
+                  (println "❌ Set CLOJARS_USERNAME and CLOJARS_PASSWORD"))}
+
+  ;; === Benchmarking Tasks ===
+
+  bench {:doc "Run performance benchmarks"
+         :task (shell "clj -M:bench -m benchmarks.core")}
+
+  bench:providers {:doc "Benchmark different providers"
+                   :task (shell "clj -M:bench -m benchmarks.providers")}
+
+  ;; === CI/CD Tasks ===
+
+  ci {:doc "Run full CI pipeline"
+      :depends [clean deps lint format:check test]
+      :task (println "✅ CI pipeline completed successfully")}
+
+  ci:full {:doc "Run full CI with examples and benchmarks"
+           :depends [ci test:examples bench]
+           :task (println "✅ Full CI pipeline completed")}
+
+  ;; === Setup Tasks ===
+
+  setup {:doc "Set up development environment"
+         :task (do (println "🚀 Setting up standard-agent development environment...")
+                   (shell "clj -P -M:test:dev:examples:component:integrant:mount")
+                   (println "✅ Dependencies downloaded")
+                   (println "\n📋 Environment Check:")
+                   (if (System/getenv "OPENAI_API_KEY")
+                     (println "✅ OpenAI API key found")
+                     (println "⚠️  OPENAI_API_KEY not set"))
+                   (if (System/getenv "CLAUDE_API_KEY")
+                     (println "✅ Claude API key found")
+                     (println "⚠️  CLAUDE_API_KEY not set"))
+                   (if (System/getenv "GEMINI_API_KEY")
+                     (println "✅ Gemini API key found")
+                     (println "⚠️  GEMINI_API_KEY not set"))
+                   (println "\n✅ Setup complete!")
+                   (println "Run 'bb dev' to start REPL")
+                   (println "Run 'bb example' to test with mock provider")
+                   (println "Run 'bb check' to verify everything works"))}
+
+  ;; === Quick Start Tasks ===
+
+  quickstart {:doc "Quick start guide"
+              :task (do (println "
+=== Standard Agent Quick Start ===
+
+1. Basic Usage:
+   bb example           # Run with mock provider
+   bb example:functional # Functional style
+   bb example:registry  # Registry pattern
+
+2. Development:
+   bb dev              # Start REPL
+   bb test             # Run tests
+   bb check            # Run all checks
+
+3. With Real Providers:
+   export OPENAI_API_KEY=...
+   bb example:openai
+
+4. Documentation:
+   bb docs             # Generate docs
+   bb docs:serve       # View docs
+
+For more: https://github.com/yourusername/standard-agent
+"))}
+
+  ;; === Integration Tasks ===
+
+  test:component {:doc "Test Component integration"
+                  :task (shell "clj -M:component:test -i component")}
+
+  test:integrant {:doc "Test Integrant integration"
+                  :task (shell "clj -M:integrant:test -i integrant")}
+
+  test:mount {:doc "Test Mount integration"
+              :task (shell "clj -M:mount:test -i mount")}
+
+  test:integrations {:doc "Test all integrations"
+                     :depends [test:component test:integrant test:mount]
+                     :task (println "✅ All integration tests passed")}
+
+  ;; === Release Tasks ===
+
+  release:check {:doc "Pre-release checks"
+                 :depends [ci test:integrations test:examples]
+                 :task (println "✅ Ready for release")}
+
+  release:patch {:doc "Release patch version"
+                 :task (do (shell "git tag -a v$(clj -M:version patch) -m 'Patch release'")
+                           (shell "git push --tags")
+                           (shell "bb deploy"))}
+
+  release:minor {:doc "Release minor version"
+                 :task (do (shell "git tag -a v$(clj -M:version minor) -m 'Minor release'")
+                           (shell "git push --tags")
+                           (shell "bb deploy"))}
+
+  release:major {:doc "Release major version"
+                 :task (do (shell "git tag -a v$(clj -M:version major) -m 'Major release'")
+                           (shell "git push --tags")
+                           (shell "bb deploy"))}}}
